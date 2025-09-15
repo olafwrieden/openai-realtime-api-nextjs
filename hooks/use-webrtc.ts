@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { Conversation } from "@/lib/conversations";
 import { useTranslations } from "@/components/translations-context";
+import { Conversation } from "@/lib/conversations";
+import { useEffect, useRef, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 export interface Tool {
   name: string;
@@ -89,7 +89,7 @@ export default function useWebRTCAudioSession(
         modalities: ["text", "audio"],
         tools: tools || [],
         input_audio_transcription: {
-          model: "whisper-1",
+          model: process.env.MODEL_NAME || "gpt-realtime",
         },
       },
     };
@@ -437,8 +437,9 @@ export default function useWebRTCAudioSession(
       await pc.setLocalDescription(offer);
 
       // Send SDP offer to OpenAI Realtime
-      const baseUrl = "https://api.openai.com/v1/realtime";
-      const model = "gpt-4o-realtime-preview-2024-12-17";
+      // See: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio-webrtc
+      const baseUrl = "https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc";
+      const model = process.env.MODEL_NAME || "gpt-realtime";
       const response = await fetch(`${baseUrl}?model=${model}&voice=${voice}`, {
         method: "POST",
         body: offer.sdp,
@@ -520,7 +521,7 @@ export default function useWebRTCAudioSession(
     }
 
     const messageId = uuidv4();
-    
+
     // Add message to conversation immediately
     const newMessage: Conversation = {
       id: messageId,
@@ -530,7 +531,7 @@ export default function useWebRTCAudioSession(
       isFinal: true,
       status: "final",
     };
-    
+
     setConversation(prev => [...prev, newMessage]);
 
     // Send message through data channel
@@ -551,9 +552,10 @@ export default function useWebRTCAudioSession(
     const response = {
       type: "response.create",
     };
-    
+
     dataChannelRef.current.send(JSON.stringify(message));
-    dataChannelRef.current.send(JSON.stringify(response));}
+    dataChannelRef.current.send(JSON.stringify(response));
+  }
 
   // Cleanup on unmount
   useEffect(() => {
